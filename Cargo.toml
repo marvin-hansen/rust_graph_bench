@@ -1,0 +1,9 @@
+[package]
+name = "rust_graph_bench"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+derive_more={version="^0.99", features=["constructor", "display"]}
+petgraph="^0.6"
+hypergraph = "2.1.0"
