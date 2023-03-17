@@ -4,6 +4,7 @@
 use hypergraph::Hypergraph;
 use petgraph::csr::Csr;
 use petgraph::matrix_graph::MatrixGraph;
+use std::ops::Sub;
 use std::thread;
 use std::time::{Duration, Instant};
 mod structs;
@@ -13,9 +14,12 @@ fn main() {
     // number of nodes added to the graph
     let k = 1_000_000;
 
+    // CSR doesn't have built-in pre-allocation
     let csr_time = time_csr_graph(k);
-    let mtx_time = time_matrix_graph(k);
-    let hyper_time = time_hyper_graph(k);
+    // Matrixgraph slows down considerably with pre-allocation
+    let mtx_time = time_matrix_graph(k, false);
+    // Hypergraph inserts faster with pre-allocation
+    let hyper_time = time_hyper_graph(k, true);
 
     println!("Number of nodes added: {}", k);
     println!();
@@ -23,11 +27,11 @@ fn main() {
     print_duration("MatrixGraph", &mtx_time);
     print_duration("HyperGraph", &hyper_time);
 
-    let diff_hyper_mtx = hyper_time - csr_time;
+    let diff_hyper_mtx = hyper_time.sub(csr_time);
     println!("Diff: HyperGraph - CsrGraph : {:?} ", diff_hyper_mtx);
     println!();
 
-    let diff_hyper_mtx = hyper_time - mtx_time;
+    let diff_hyper_mtx = hyper_time.sub(mtx_time);
     println!("Diff: HyperGraph - MatrixGraph : {:?} ", diff_hyper_mtx);
     println!();
 
@@ -35,9 +39,14 @@ fn main() {
     thread::sleep(Duration::from_secs(1));
 }
 
-fn time_matrix_graph(k: u64) -> Duration {
+fn time_matrix_graph(k: u64, with_capacity: bool) -> Duration {
     let start = Instant::now();
-    let mut g: MatrixGraph<Node, Edge> = petgraph::matrix_graph::MatrixGraph::new();
+    let mut g: MatrixGraph<Node, Edge> = if with_capacity {
+        let node_capacity = k as usize;
+        MatrixGraph::with_capacity(node_capacity)
+    } else {
+        MatrixGraph::new()
+    };
 
     for i in 1..k {
         let node = Node::new(
@@ -77,9 +86,15 @@ pub fn print_duration(msg: &str, elapsed: &Duration) {
     println!();
 }
 
-fn time_hyper_graph(k: u64) -> Duration {
+fn time_hyper_graph(k: u64, with_capacity: bool) -> Duration {
     let start = Instant::now();
-    let mut g = Hypergraph::<Node, Edge>::new();
+
+    let mut g: Hypergraph<Node, Edge> = if with_capacity {
+        let capacity = k as usize;
+        Hypergraph::<Node, Edge>::with_capacity(capacity, capacity)
+    } else {
+        Hypergraph::<Node, Edge>::new()
+    };
 
     for i in 1..k {
         let node = Node::new(
