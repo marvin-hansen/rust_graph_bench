@@ -3,6 +3,27 @@
  */
 use derive_more::{Constructor, Display};
 use std::fmt::{Display, Formatter};
+use std::time::Duration;
+
+#[allow(dead_code)]
+#[derive(Debug, Default, Clone, Hash, Eq, PartialEq)]
+pub struct Record{
+    name: String,
+    duration: Duration,
+}
+
+impl Record{
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+    pub fn duration(&self) -> Duration {
+        self.duration
+    }
+    pub fn new(name: String, duration: Duration) -> Self {
+        Self { name, duration }
+    }
+}
 
 #[allow(dead_code)]
 #[derive(Debug, Copy, Default, Display, Clone, Hash, Eq, PartialEq)]

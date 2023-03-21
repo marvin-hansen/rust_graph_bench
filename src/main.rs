@@ -4,45 +4,44 @@
 use hypergraph::Hypergraph;
 use petgraph::csr::Csr;
 use petgraph::matrix_graph::MatrixGraph;
-use std::ops::Sub;
-use std::thread;
-use std::time::{Duration, Instant};
+use std::time::{Instant};
 mod structs;
 use structs::*;
 
-fn main() {
+fn main()
+{
     // number of nodes added to the graph
     let k = 1_000_000;
+    let with_capacity = false;
+    let mut report: Vec<Record> = Vec::new();
 
     // CSR doesn't have built-in pre-allocation
     let csr_time = time_csr_graph(k);
+    report.push(csr_time);
+
     // Matrixgraph slows down considerably with pre-allocation
-    let mtx_time = time_matrix_graph(k, false);
+    let mtx_time = time_matrix_graph(k, with_capacity);
+    report.push(mtx_time);
+
     // Hypergraph inserts faster with pre-allocation
-    let hyper_time = time_hyper_graph(k, true);
+    let hyper_time = time_hyper_graph(k, with_capacity);
+    report.push(hyper_time);
 
     println!("Number of nodes added: {}", k);
     println!();
-    print_duration("CsrGraph", &csr_time);
-    print_duration("MatrixGraph", &mtx_time);
-    print_duration("HyperGraph", &hyper_time);
+    print_duration(report);
 
-    let diff_hyper_mtx = hyper_time.sub(csr_time);
-    println!("Diff: HyperGraph - CsrGraph : {:?} ", diff_hyper_mtx);
-    println!();
-
-    let diff_hyper_mtx = hyper_time.sub(mtx_time);
-    println!("Diff: HyperGraph - MatrixGraph : {:?} ", diff_hyper_mtx);
-    println!();
-
-    // Wait one second to read memory usage
-    thread::sleep(Duration::from_secs(1));
 }
 
-fn time_matrix_graph(k: u64, with_capacity: bool) -> Duration {
+fn time_matrix_graph(
+    k: u64,
+    with_capacity: bool
+)
+    -> Record
+{
     let start = Instant::now();
     let mut g: MatrixGraph<Node, Edge> = if with_capacity {
-        let node_capacity = k as usize;
+        let node_capacity = (k*2) as usize;
         MatrixGraph::with_capacity(node_capacity)
     } else {
         MatrixGraph::new()
@@ -59,10 +58,14 @@ fn time_matrix_graph(k: u64, with_capacity: bool) -> Duration {
         g.add_node(node);
     }
 
-    return start.elapsed();
+    return Record::new(String::from("Matrix Graph"), start.elapsed());
 }
 
-fn time_csr_graph(k: u64) -> Duration {
+fn time_csr_graph(
+    k: u64
+)
+    -> Record
+{
     let start = Instant::now();
 
     let mut g: Csr<Node, Edge> = Csr::default();
@@ -78,19 +81,19 @@ fn time_csr_graph(k: u64) -> Duration {
         g.add_node(node);
     }
 
-    return start.elapsed();
+    return Record::new(String::from("CSR Graph"), start.elapsed());
 }
 
-pub fn print_duration(msg: &str, elapsed: &Duration) {
-    println!("{} took: {:?} ", msg, elapsed);
-    println!();
-}
-
-fn time_hyper_graph(k: u64, with_capacity: bool) -> Duration {
+fn time_hyper_graph(
+    k: u64,
+    with_capacity: bool
+)
+    -> Record
+{
     let start = Instant::now();
 
     let mut g: Hypergraph<Node, Edge> = if with_capacity {
-        let capacity = k as usize;
+        let capacity = (k*2) as usize;
         Hypergraph::<Node, Edge>::with_capacity(capacity, capacity)
     } else {
         Hypergraph::<Node, Edge>::new()
@@ -107,5 +110,18 @@ fn time_hyper_graph(k: u64, with_capacity: bool) -> Duration {
         let _ = g.add_vertex(node);
     }
 
-    return start.elapsed();
+    return Record::new(String::from("Hyper Graph"), start.elapsed());
+}
+
+
+pub fn print_duration(
+    mut report: Vec<Record>
+)
+{
+    report.sort_by(|a, b| a.duration().cmp(&b.duration()));
+
+    for r in report.iter_mut() {
+        println!("{} took: {:?}", r.name(), r.duration());
+    }
+    println!();
 }
